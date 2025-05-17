@@ -1,0 +1,256 @@
+{
+  "type": "object",
+  "properties": {
+    "pieces": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "blank": {
+            "type": "boolean",
+            "title": "Piece is empty"
+          },
+          "name": {
+            "type": "string",
+            "title": "Piece Name"
+          },
+          "moves": {
+            "type": "array",
+            "title": "Moves of the piece (not takes)",
+            "examples": [
+              [[0, 0, 0]]
+            ],
+            "items": {
+              "type": "array",
+              "maxLength": 3,
+              "minLength": 3,
+              "title": "3 Integers",
+              "items": {
+                "type": "integer"
+              }
+            }
+          },
+          "takes": {
+            "type": "array",
+            "title": "Takes of the piece (not moves)",
+            "items": {
+              "type": "array",
+              "items": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          },
+          "events": {
+            "title": "Piece Events",
+            "properties": {
+              "move": {
+                "type": ["string", "array"],
+                "title": "called on moves generated",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "take": {
+                "type": ["string", "array"],
+                "default": "",
+                "title": "called on takes generated",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "setup": {
+                "type": ["string", "array"],
+                "title": "Called on piece init",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "select": {
+                "type": ["string", "array"],
+                "title": "Called when \"take\" or \"move\" event called",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "tile_move": {
+                "type": ["string", "array"],
+                "title": "Called on tile in move generation",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "tile_take": {
+                "type": ["string", "array"],
+                "title": "Called on tile in take generation",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "on_move": {
+                "type": ["string", "array"],
+                "title": "Called when a piece is moved (not taken)",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "on_attack": {
+                "type": ["string", "array"],
+                "title": "Called when piece takes another piece",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "on_take": {
+                "type": ["string", "array"],
+                "title": "Called when this piece is taken",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              },
+              "on_event": {
+                "type": ["string", "array"],
+                "title": "Called when any event is triggered",
+                "default": "",
+                "examples": [[], ""],
+                "items": {
+                  "type": "string",
+                  "default": ""
+                }
+              }
+            }
+          },
+          "icon": {
+            "type": "object",
+            "required": [
+              "display"
+            ],
+            "properties": {
+              "display": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "title": "Piece display type",
+                    "enum": [
+                      "image",
+                      "text",
+                      "none"
+                    ]
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "type": {
+                          "const": "image"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "object",
+                          "properties": {
+                            "black": {
+                              "type": "string"
+                            },
+                            "white": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["black", "white"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "type": {
+                          "const": "text"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "title": "Text Placeholder",
+                          "default": "Piece",
+                          "type": [
+                            "string",
+                            "object"
+                          ],
+                          "properties": {
+                            "black": {
+                              "type": "string"
+                            },
+                            "white": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "board": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "default": 0
+        },
+        "maxLength": 8,
+        "minLength": 8
+      },
+      "maxLength": 8,
+      "minLength": 8
+    }
+  },
+  "required": ["pieces", "board"]
+}

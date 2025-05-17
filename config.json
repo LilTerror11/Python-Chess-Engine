@@ -1,0 +1,61 @@
+{
+  "piece_format": {
+    "index (str)": {
+      "name": "piece name",
+      "blank (optional)": "true or false",
+      "moves": [
+        [
+          "x offset1",
+          "y offset1",
+          "count1"
+        ],
+        [
+          "x offset2",
+          "y offset2",
+          "count2"
+        ]
+      ],
+      "takes": [
+        [
+          "x offset3",
+          "y offset3",
+          "count3"
+        ],
+        [
+          "x offset4",
+          "y offset4",
+          "count4"
+        ]
+      ],
+      "icon": {
+        "display": {
+          "type": "display type"
+        }
+      },
+      "events (these are all optional)": {
+        "move": "events_key",
+        "take": "events_key",
+        "setup": "events_key",
+        "select": "events_key",
+        "tile_move": "events_key",
+        "tile_take": "events_key",
+        "on_move": "events_key",
+        "on_take": "events_key",
+        "on_event": "events_key"
+      }
+    }
+  },
+  "pieces": {
+
+  },
+  "board": [
+    [ -4, -2, -3, -5, -6, -3, -2, -4 ],
+    [ -1, -1, -1, -1, -1, -1, -1, -1 ],
+    [  0,  0,  0,  0,  0,  0,  0,  0 ],
+    [  0,  0,  0,  0,  0,  0,  0,  0 ],
+    [  0,  0,  0,  0,  0,  0,  0,  0 ],
+    [  0,  0,  0,  0,  0,  0,  0,  0 ],
+    [  1,  1,  1,  1,  1,  1,  1,  1 ],
+    [  4,  2,  3,  5,  6,  3,  2,  4 ]
+  ]
+}
