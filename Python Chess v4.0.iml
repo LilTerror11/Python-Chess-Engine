@@ -4,8 +4,10 @@
     <exclude-output />
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (Python Chess v4.0)" jdkType="Python SDK" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="library" exported="" scope="PROVIDED" name="Python 3.12 interpreter library" level="application" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
