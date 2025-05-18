@@ -20,7 +20,6 @@ class Board:
                 piece = row[y]
                 self.__board[x][y] = Piece()
 
-
     def __init__(self, board: list[list[int]]=None):
         if board is None:
             board = [[0] * 8] * 8
@@ -32,6 +31,9 @@ class Board:
 
 
 class AttributeDict(dict):
+    """
+    Unused so far
+    """
     def __init__(self, val: Any = None):
         def update(__):
             for _ in __:
@@ -52,6 +54,9 @@ class AttributeDict(dict):
 
     def __setattr__(self, key, value):
         super().__setitem__(key, value)
+
+
+# ------- EVENTS -------
 
 class TileMoveEvent:
 
@@ -111,6 +116,8 @@ class TileMoveEvent:
         if self.parent:
             return iter([self, *list(self.parent)])
         return iter([self])
+
+
 class TileTakeEvent:
 
     piece: Piece
@@ -122,7 +129,6 @@ class TileTakeEvent:
     parent: Any | None
 
     __length: int = 0
-
 
     def __init__(self,
                  piece: Piece,
@@ -180,6 +186,8 @@ class MoveEvent:
         self.piece = piece
         self.moves = moves
         self.raw_moves = raw_moves
+
+
 class TakeEvent:
     piece: Piece
     moves: list[TileTakeEvent]
