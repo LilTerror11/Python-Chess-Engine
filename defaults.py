@@ -9,6 +9,7 @@ def default_tile_move(event: TileMoveEvent):
     else:
         return True, event
 
+
 def default_move(event: MoveEvent):
     ...
 

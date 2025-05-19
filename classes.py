@@ -12,11 +12,14 @@ from pygame import Vector2, Surface
 class NoBoardException(Exception):
     ...
 
+
 class ConfigException(Exception):
     ...
 
+
 class ConfigWarning(UserWarning):
     ...
+
 
 class ConfigLoggingWarning(UserWarning):
     ...
@@ -66,6 +69,7 @@ class AttributeDict(dict):
     def __setattr__(self, key, value):
         super().__setitem__(key, value)
 
+
 # "move"
 # "take"
 # "setup"
@@ -97,9 +101,9 @@ class IndexedEvent:
 
 
 class PieceEvents:
-    def __init__(self, move = "default.move", take = "default.take", setup = "default.null", select = "defult.null",
-                 tile_move = "default.tile_move", tile_take = "default.tile_take", on_attack = "default.null",
-                 on_move = "default.null", on_taken = "default.null", on_event = "default.null"):
+    def __init__(self, move="default.move", take="default.take", setup="default.null", select="default.null",
+                 tile_move="default.tile_move", tile_take="default.tile_take", on_attack="default.null",
+                 on_move="default.null", on_taken="default.null", on_event="default.null"):
 
         def to_list(val: list | Any):
             if isinstance(val, list):
@@ -205,7 +209,8 @@ class GeneratedPiece:
                     self.display = AttributeDict(icon_config.value)
             else:
                 warn(f"Piece \"{self.name}\" is missing the \"icon\" tag", ConfigWarning, stacklevel=3)
-                warn(f"Piece \"{self.name}\" has had its display be generated ({self.name[0].upper()})", ConfigLoggingWarning, stacklevel=3)
+                warn(f"Piece \"{self.name}\" has had its display be generated ({self.name[0].upper()})",
+                     ConfigLoggingWarning, stacklevel=3)
                 self.display = AttributeDict({"black": self.name.upper()[0], "white": self.name.upper()[0]})
             if keys.__contains__("events"):
                 self.events = PieceEvents(**config.events)
@@ -250,7 +255,7 @@ class Board:
                 piece_object = generated_piece.generate_piece(self.get_assets(), self.get_events())
                 self.__board[x].append(piece_object)
 
-    def __init__(self, board: list[list[int]]=None):
+    def __init__(self, board: list[list[int]] = None):
         if board is None:
             board = [[0] * 8] * 8
         self.board_init = board
@@ -268,7 +273,7 @@ class Board:
 
         if not isinstance(piece, GeneratedPiece):
             generated_piece: GeneratedPiece = GeneratedPiece.get_pieces()[piece]
-            generated_piece.generate_piece(self.__assets, self.__events)
+            piece = generated_piece.generate_piece(self.__assets, self.__events)
 
     @staticmethod
     def attach_events(events):
@@ -319,7 +324,6 @@ class TileMoveEvent(Event):
     __length: int = 0
     board: Board
 
-
     def __init__(self,
                  piece: Piece,
                  board: Board,
@@ -328,7 +332,7 @@ class TileMoveEvent(Event):
                  pos: coordinate,
                  pre: coordinate,
                  count: int,
-                 parent = None,
+                 parent=None,
                  ):
         self.piece = piece
         self.raw_move = raw_move
@@ -393,7 +397,7 @@ class TileTakeEvent(Event):
                  pre: coordinate,
                  pos: coordinate,
                  count: int,
-                 parent = None,
+                 parent=None,
                  ):
         self.board = board
         self.piece = piece
@@ -441,7 +445,8 @@ class MoveData(Event):
     piece: Piece
     move: list[int, int, int]
 
-    def __init__(self, piece: Piece | HasMoveData, move: Optional[list[int, int, int]] = None, x: int | coordinate = None, y: Optional[int] = None):
+    def __init__(self, piece: Piece | HasMoveData, move: Optional[list[int, int, int]] = None,
+                 x: int | coordinate = None, y: Optional[int] = None):
         if isinstance(piece, HasMoveData):
             move_data: MoveData = piece.get_move_data()
             self.pos = copy(move_data.pos)
@@ -451,7 +456,6 @@ class MoveData(Event):
             else:
                 self.pos = Vector2(x, y)
             self.move = move
-
 
     def get_move_data(self):
         return self
