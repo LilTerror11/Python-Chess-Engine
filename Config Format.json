@@ -131,7 +131,7 @@
                   "default": ""
                 }
               },
-              "on_take": {
+              "on_taken": {
                 "type": ["string", "array"],
                 "title": "Called when this piece is taken",
                 "default": "",
