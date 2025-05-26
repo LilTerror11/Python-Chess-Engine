@@ -4,12 +4,16 @@ from collections.abc import Sequence, Callable
 from typing import Iterable, Any, Protocol, runtime_checkable, Optional
 from warnings import warn
 
-from pygame import Vector2, Surface
+from pygame import Vector2, Surface, Vector3
+
 
 # ------- ERRORS -------
 
 
 class NoBoardException(Exception):
+    ...
+
+class UnknownPieceException(Exception):
     ...
 
 
@@ -25,25 +29,59 @@ class ConfigLoggingWarning(UserWarning):
     ...
 
 
-# ------------ TYPES / CLASSES ------------
+# ------------ TYPES / CLASSES / FUNCTIONS ------------
 
 coordinate = Vector2 | Sequence[int]
+moves_format = list[list[int, int, int]] | list[tuple[int, int, int]]
+takes_format = list[list[int, int, int]] | list[tuple[int, int, int]]
 
+
+def flip_coordinate(pos: coordinate):
+    """
+    this is the fix for certain behind the scenes functions to make the (0,0) coordinate be the bottom left corner
+    """
+    pos = copy(pos)
+    pos[1] = 7 - pos[1]
+    return pos
+
+def flip_y(y: int):
+    """
+    This is a 1 dimensional version of "flip_coordinate",
+    See "flip_coordinate" for more info
+    """
+    return 7 - y
 
 class GLOBAL:
-    events: dict
-    assets: dict
-    config_raw: dict
+    """
+
+    """
+    __events: dict
+    __assets: dict
+    __config_raw: dict
 
     @staticmethod
-    def set_value(val: Any, key: str):
-        if key == "events":
-            GLOBAL.events = val
-        elif key == "assets":
-            GLOBAL.assets = val
-        elif key == "config":
-            GLOBAL.config_raw = val
+    def set_events(val):
+        GLOBAL.__events = copy(val)
 
+    @staticmethod
+    def set_assets(val):
+        GLOBAL.__assets = copy(val)
+
+    @staticmethod
+    def set_raw_config(val):
+        GLOBAL.__config_raw = copy(val)
+
+    @staticmethod
+    def get_events():
+        return GLOBAL.__events
+
+    @staticmethod
+    def get_assets():
+        return GLOBAL.__assets
+
+    @staticmethod
+    def get_raw_config():
+        return GLOBAL.__config_raw
 
 class AttributeDict(dict):
     """
@@ -86,7 +124,8 @@ class IndexedEvent:
     function: Callable
 
     def get_function(self):
-        self.function = GLOBAL.events[self.key]
+        # print(GLOBAL.get_events())
+        self.function = GLOBAL.get_events()[self.key]
         return self.function
 
     def __init__(self, val: str):
@@ -155,20 +194,25 @@ class GeneratedPiece:
     blank: Optional[bool] = None
 
     moves: Optional[list[list[int, int, int]]] = None
-    attack: Optional[list[list[int, int, int]]] = None
+    takes: Optional[list[list[int, int, int]]] = None
 
     events: Optional[PieceEvents] = None
 
     display: Optional[AttributeDict[str, str | Surface]] = None
 
+    piece_id: str
+
     __pieces = {}
-    __piece_ids = {}
+    __piece_ids = []
 
     def __init__(self, config: AttributeDict | dict, piece_id: str):
         if isinstance(config, dict):
             config = AttributeDict(config)
 
         keys = list(config.keys())
+        #print(piece_id)
+        GeneratedPiece.__piece_ids.append(piece_id)
+        self.piece_id = piece_id
         self.keys = keys
 
         self.blank = False
@@ -181,7 +225,7 @@ class GeneratedPiece:
         if keys.__contains__("blank"):
             self.blank = config.blank
         if not self.blank:
-            print(piece_id)
+            # print(piece_id)
             if keys.__contains__("name"):
                 self.name = config.name
             else:
@@ -199,7 +243,7 @@ class GeneratedPiece:
                 warn(f"Piece \"{self.name}\" has had its takes blanked", ConfigLoggingWarning, stacklevel=3)
                 self.takes = []
             if keys.__contains__("icon"):
-                icon_config = config.icon.display
+                icon_config = AttributeDict(config.icon["display"])
                 if icon_config.type == "text":
                     if isinstance(icon_config.value, dict):
                         self.display = AttributeDict(icon_config.value)
@@ -219,8 +263,10 @@ class GeneratedPiece:
                 self.events = PieceEvents()
         GeneratedPiece.__pieces[piece_id] = self
 
-    def generate_piece(self, assets, events):
-        piece = Piece(PieceEvents)
+    def generate_piece(self, colour: str = "null", pos: coordinate = Vector2(), board: Any = None):
+
+        display = self.display
+        piece = Piece(self.blank, self.events, self.moves, self.takes, display, self.name, self.piece_id, Vector2(pos), colour, board)
 
         return piece
 
@@ -234,46 +280,183 @@ class GeneratedPiece:
 
 
 class Piece:
-    def __init__(self, events, ):
-        ...
+
+    pos: Vector2
+    piece_id: str
+    name: str
+    display: dict[str, dict[str, Surface | str] | str]
+    events: PieceEvents
+
+    moves: moves_format
+    takes: takes_format
+
+    move_count: int = 0
+
+    data: dict
+
+    colour: str
+
+    def __init__(self, blank: bool = False, events: Optional[PieceEvents] = None, moves: Optional[moves_format] = None, takes: Optional[takes_format] = None, display: Optional[dict[str, dict[str, Surface | str] | str]] = None, name: Optional[str] = None, piece_id: Optional[str] = None, pos: Optional[coordinate | None] = Vector2(), colour: Optional[str] = None, board: Any = None):
+        self.blank = blank
+
+        self.events = events
+        self.moves = moves
+        self.takes = takes
+
+        self.move_count = 0
+
+        self.display = display
+        self.name = name
+        self.piece_id = piece_id
+        self.pos = pos
+
+        self.colour = colour
+
+        self.__board: Board = board
+
+    def move(self, pos: int | coordinate, y: Optional[int] = None):
+        if isinstance(pos, int):
+            pos = Vector2(pos, y)
+        self.move_count += 1
+        self.__board.move(self.pos, pos)
+
+    def get_moves(self):
+        for move in self.moves:
+            count = 0
+            out = True
+            pre_pos = copy(self.pos)
+            parent = None
+            while count < 64 and out:
+                count += 1
+                print("parent", parent)
+                event_data = RawTileEvent(self, self.__board, move, self.pos, pre_pos + Vector3(move).xy, pre_pos, count, parent)
+                print("event_data.parent", event_data.parent)
+                print("event_data", event_data)
+                for event in self.events.tile_move:
+                    #print(event_data)
+                    out = event(event_data)
+                    pre_pos = event_data.pos
+                    parent = event_data
+                    if not out:
+                        break
+                print("event_data", event_data)
+                print("Next")
 
 
+            print(list(event_data))
+            return list(event_data)
+
+
+# Board Class, this is the basis of the game, containing the pieces
+# and helper functions used to move pieces around
 class Board:
 
-    __board: list[list[Piece]] = [[]] * 8
+    __board: list[list[Piece]] = []
+    for x in range(8):
+        __board.append([])
     board_init: list[list[int]]
     __assets: dict = None
     __events: dict = None
 
+    # Converts the config board into actual pieces, which have been generated as "GeneratedPiece"
     def gen_board(self):
         self.board_init: list[list[int]]
-        for x in range(len(self.board_init)):
-            row = self.board_init[x]
-            for y in range(len(row)):
-                piece = row[y]
-                generated_piece: GeneratedPiece = GeneratedPiece.get_pieces()[str(piece)]
-                piece_object = generated_piece.generate_piece(self.get_assets(), self.get_events())
-                self.__board[x].append(piece_object)
+        #print(range(len(self.board_init)))
+        # Columns
+        for y in range(len(self.board_init)):
+            row = self.board_init[flip_y(y)]
+            # Rows
+            for x in range(len(row)):
+                # Pieces
+                piece = row[x]
+                # setting up the colour
+                colour = "white"
+                if piece < 0:
+                    # if the piece is negative, then it means it's black
+                    colour = "black"
+                # If the piece isn't in config, raise an error
+                if not GeneratedPiece.get_piece_ids().__contains__(str(abs(piece))):
+                    raise UnknownPieceException(f"There is no piece of id \"id{abs(piece)}\"")
+                # Get the piece if it does exist
+                generated_piece: GeneratedPiece = GeneratedPiece.get_pieces()[str(abs(piece))]
+                # Generate the piece, filling out values like it's position, it's colour, and it's parent board
+                piece_object = generated_piece.generate_piece(colour, (x, y), self)
+                # Put the piece on the board
+                self.__board[y].append(piece_object)
 
     def __init__(self, board: list[list[int]] = None):
+        # Simple Board Setup stuff
         if board is None:
+            # The config version of the board
             board = [[0] * 8] * 8
         self.board_init = board
         self.gen_board()
 
     def get_piece_at(self, x: coordinate | int, y: Optional[int] = None) -> Piece:
-        if y:
-            return self.__board[x][y]
-        else:
-            return self.__board[x[0]][x[1]]
+        """
 
-    def spawn_piece(self, piece: str | GeneratedPiece, x: int | coordinate, y: Optional[int] = None):
+        :param x: The y Position of the piece be got
+        :param y: The x Position of the piece be got
+        :return: Piece at (x, y)
+        """
+        if y is None:
+            x: coordinate
+            pos = flip_coordinate(Vector2(x))
+            return self.__board[int(pos.y)][int(pos.x)]
+        else:
+            return self.__board[y][x]
+
+
+    def spawn_piece(self, piece: int | GeneratedPiece, x: int | coordinate, y: Optional[int] = None):
+
+        """
+        :param piece: A GeneratedPiece, or a piece index (int)
+        :param x: The x position of the piece.
+        :param y: The y position of the piece.
+        :return: The piece being generated.
+        """
+
         if y is None:
             x, y = x
 
+        colour = "white"
+
+        if piece < 0:
+            colour = "black"
+
         if not isinstance(piece, GeneratedPiece):
-            generated_piece: GeneratedPiece = GeneratedPiece.get_pieces()[piece]
-            piece = generated_piece.generate_piece(self.__assets, self.__events)
+            generated_piece: GeneratedPiece = GeneratedPiece.get_pieces()[str(piece)]
+        else:
+            generated_piece = piece
+
+        piece = generated_piece.generate_piece(colour, (x, y), self)
+
+        print(piece.piece_id)
+
+        self.__board[flip_y(y)][x] = piece
+
+        return piece
+
+    def move(self, pos1: coordinate, pos2: coordinate, replace: GeneratedPiece | int = 0):
+        """
+
+        :param pos1: The position of the piece getting moved
+        :param pos2: The new position
+        :param replace: [Optional] the piece getting left behind after the move
+        :return: None
+        """
+
+        pos1_ = flip_coordinate(pos1)
+        pos2_ = flip_coordinate(pos2)
+
+        self.__board[int(pos2_[1])][int(pos2_[0])] = copy(self.__board[int(pos1_[1])][int(pos1_[0])])
+        self.spawn_piece(replace, pos1)
+
+    def get_board(self):
+        """
+        :return: A Copy of the board (cannot be used to change the raw board)
+        """
+        return copy(self.__board)
 
     @staticmethod
     def attach_events(events):
@@ -291,29 +474,48 @@ class Board:
     def get_assets():
         return copy(Board.__assets)
 
+    def __str__(self):
+        #print(" a ".join(str(len(self.__board[x])) for x in range(len(self.__board))))
+        return "[ " + " ],\n[ ".join(", ".join(r.piece_id for r in self.__board[i]) for i in range(len(self.__board))) + " ]"
+
 
 # ------- EVENTS -------
 
 # Base Event class, for global values in events
 class Event:
+    """
+    This is the basis for events
+    Contains global event attributes (Things every event has)
+    """
     __board: Board = None
+    piece: Piece
 
     @staticmethod
     def set_board(board: Board):
+        """
+        :param board: You don't need to know this :P
+        :return: None
+        """
         Event.__board = board
 
     @staticmethod
     def get_board():
+        """
+        :return: The ***board***
+        """
         if Event.__board:
             return Event.__board
         else:
             raise NoBoardException("No Board has been set")
 
+    def get_piece(self):
+        return self.piece
 
-class TileMoveEvent(Event):
-
+class RawTileEvent(Event):
+    """
+    """
     piece: Piece
-    raw_move: list[int, int, int]
+    __raw_move: list[int, int, int]
     start: coordinate
     pos: coordinate
     pre: coordinate
@@ -321,13 +523,15 @@ class TileMoveEvent(Event):
     child: Any | None
     parent: Any | None
 
+    func: Callable = lambda *x : ...
+
     __length: int = 0
     board: Board
 
     def __init__(self,
                  piece: Piece,
                  board: Board,
-                 raw_move: list[int, int, int],
+                 raw_data: list[int, int, int],
                  start: coordinate,
                  pos: coordinate,
                  pre: coordinate,
@@ -335,7 +539,7 @@ class TileMoveEvent(Event):
                  parent=None,
                  ):
         self.piece = piece
-        self.raw_move = raw_move
+        self.raw_data = raw_data
         self.start = start
         self.pre = pre
         self.pos = pos
@@ -343,8 +547,9 @@ class TileMoveEvent(Event):
         self.count = count
         self.parent = parent
         self.child = None
+        self.__canceled = False
         self.type = self.__class__
-        if isinstance(parent, TileMoveEvent):
+        if not parent is None:
             parent.child = self
             self.__length = parent.__length + 1
 
@@ -355,7 +560,7 @@ class TileMoveEvent(Event):
         return self.__length
 
     def __repr__(self):
-        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_move:{self.raw_move}, start:{self.start}, pos:{self.pos}, count:{self.count}, parent:{True if self.parent else False}, child:{True if self.child else False}' + "}"
+        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_data:{self.raw_data}, start:{self.start}, pre:{self.pre}, pos:{self.pos}, count:{self.count}, parent:{True if self.parent else False}, child:{True if self.child else False}' + "}"
 
     def get_child(self):
         if self.child:
@@ -370,74 +575,27 @@ class TileMoveEvent(Event):
             return None
 
     def __iter__(self):
-        if self.parent:
-            return iter([self, *list(self.parent)])
-        return iter([self])
-
-
-class TileTakeEvent(Event):
-
-    piece: Piece
-    raw_take: list[int, int, int]
-    start: coordinate
-    pos: coordinate
-    pre: coordinate
-    count: int
-    child: Any | None
-    parent: Any | None
-    board: Board
-
-    __length: int = 0
-
-    def __init__(self,
-                 piece: Piece,
-                 board: Board,
-                 raw_take: list[int, int, int],
-                 start: coordinate,
-                 pre: coordinate,
-                 pos: coordinate,
-                 count: int,
-                 parent=None,
-                 ):
-        self.board = board
-        self.piece = piece
-        self.raw_take = raw_take
-        self.start = start
-        self.pos = pos
-        self.pre = pre
-        self.count = count
-        self.parent = parent
-        self.child = None
-        self.type = self.__class__
-        if isinstance(parent, TileTakeEvent):
-            parent.child = self
-            self.__length = parent.__length + 1
-
-    def __len__(self):
-        """
-        :return: The amount of children on this event
-        """
-        return self.__length
-
-    def __repr__(self):
-        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_move:{self.raw_take}, start:{self.start}, pos:{self.pos}, count:{self.count}, parent:{True if self.parent else False}, child:{True if self.child else False}' + "}"
-
-    def get_child(self):
         if self.child:
-            return self.child
-        else:
-            return None
-
-    def get_parent(self):
-        if self.parent:
-            return self.parent
-        else:
-            return None
-
-    def __iter__(self):
-        if self.parent:
             return iter([self, *list(self.parent)])
         return iter([self])
+
+    def attach_function(self, func: Callable):
+        self.func = func
+
+    def cancel(self, val: bool = False):
+        self.__canceled = True
+        return val
+
+    def is_canceled(self):
+        return self.__canceled
+
+
+class TileTakeEvent(RawTileEvent):
+    ...
+
+
+class TileMoveEvent(RawTileEvent):
+    ...
 
 
 class MoveData(Event):
@@ -459,6 +617,7 @@ class MoveData(Event):
 
     def get_move_data(self):
         return self
+
 
 
 class MoveEvent(Event):
