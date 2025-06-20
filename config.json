@@ -70,7 +70,10 @@
           "default.direction_tile_move",
           "pawn.tile_move"
         ],
-        "tile_take": "default.direction_tile_take"
+        "tile_take": [
+          "default.direction_tile_take",
+          "default.tile_take"
+        ]
       }
     },
     "2": {
@@ -133,7 +136,30 @@
       ]
     },
     "5": {
-      "name": "queen"
+      "name": "queen",
+      "moves": [
+        [0, 1, 8],
+        [0, -1, 8],
+        [1, 0, 8],
+        [-1, 0, 8],
+        [1, 1, 8],
+        [-1, -1, 8],
+        [1, -1, 8],
+        [-1, 1, 8]
+      ],
+      "takes": [
+        [0, 1, 8],
+        [0, -1, 8],
+        [1, 0, 8],
+        [-1, 0, 8],
+        [1, 1, 8],
+        [-1, -1, 8],
+        [1, -1, 8],
+        [-1, 1, 8]
+      ],
+      "events": {
+        "tile_move": "custom.tile_move_through"
+      }
     },
     "6": {
       "name": "king"

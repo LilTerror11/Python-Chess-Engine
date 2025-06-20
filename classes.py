@@ -1,18 +1,28 @@
-
 from copy import copy
 from collections.abc import Sequence, Callable
 from typing import Iterable, Any, Protocol, runtime_checkable, Optional
 from warnings import warn
 
+import pygame.mouse
 from pygame import Vector2, Surface, Vector3
+from builtins import print as log
+
+
+# ------- HEHE --------
+
+def print(*values, sep=" ", end="\n"):
+    log("Classes: " + sep.join(str(v) for v in values), end=end)
 
 
 # ------- ERRORS -------
 
 
+# This means that there is no board asigned yet
 class NoBoardException(Exception):
     ...
 
+
+# This means that there
 class UnknownPieceException(Exception):
     ...
 
@@ -44,12 +54,14 @@ def flip_coordinate(pos: coordinate):
     pos[1] = 7 - pos[1]
     return pos
 
+
 def flip_y(y: int):
     """
     This is a 1 dimensional version of "flip_coordinate",
     See "flip_coordinate" for more info
     """
     return 7 - y
+
 
 class GLOBAL:
     """
@@ -83,10 +95,12 @@ class GLOBAL:
     def get_raw_config():
         return GLOBAL.__config_raw
 
+
 class AttributeDict(dict):
     """
     Unused so far
     """
+
     def __init__(self, val: Any = None):
         def update(__):
             for _ in __:
@@ -108,6 +122,125 @@ class AttributeDict(dict):
         super().__setitem__(key, value)
 
 
+class SharedList(list):
+    ...
+
+
+class Vector2Int:
+    def __init__(self, x: int | float | Sequence[int | float], y: Optional[int | float] = None):
+        if not isinstance(x, (int, float)):
+            pos = [int(x[0]), int(x[1])]
+        else:
+            pos = [int(x), int(y)]
+
+        self.__x = pos[0]
+        self.__y = pos[1]
+
+    @property
+    def x(self):
+        return self.__x
+
+    @x.setter
+    def x(self, value):
+        self.__x = value
+
+    @property
+    def y(self):
+        return self.__y
+
+    @y.setter
+    def y(self, value):
+        self.__y = value
+
+    def __add__(self, other):
+        other: Vector2 | Vector2Int
+        return Vector2Int(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other):
+        other: Vector2 | Vector2Int
+        return Vector2Int(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other):
+        other: Vector2 | Vector2Int | int | float
+
+        if isinstance(other, int):
+            return Vector2Int(self.__x * other, self.__y * other)
+
+        if isinstance(other, float):
+            return Vector2(self.__x * other, self.__y * other)
+
+        if isinstance(other, Vector2Int):
+            return Vector2Int(self.__x * other.x, self.__y * other.y)
+
+        if isinstance(other, Vector2):
+            return Vector2(self.__x * other.x, self.__y * other.y)
+
+    def __truediv__(self, other):
+        other: Vector2 | Vector2Int | int | float
+
+        if isinstance(other, (float, int)):
+            return Vector2(self.__x / other, self.__y / other)
+
+        if isinstance(other, (Vector2, Vector2Int)):
+            return Vector2(self.__x / other.x, self.__y / other.y)
+
+    def __divmod__(self, other):
+        other: Vector2 | Vector2Int | int | float
+
+        if isinstance(other, (float, int)):
+            dived = (divmod(self.__x, other), divmod(self.__x, other))
+            return Vector2(dived[0][0], dived[1][0]), Vector2(dived[0][1], dived[1][1])
+
+        if isinstance(other, (Vector2, Vector2Int)):
+            dived = (divmod(self.__x, other.x), divmod(self.__x, other.y))
+            return Vector2(dived[0][0], dived[1][0]), Vector2(dived[0][1], dived[1][1])
+
+    def __iter__(self):
+        yield self.__x
+        yield self.__y
+
+    def __getitem__(self, item):
+        if item == 0:
+            return self.__x
+        elif item == 1:
+            return self.__y
+        else:
+            raise IndexError(item)
+
+    def __setitem__(self, item, value):
+        if item == 0:
+            self.__x = value
+        elif item == 1:
+            self.__y = value
+        else:
+            raise IndexError(item)
+
+
+class Mouse:
+    def __init__(self, pos: coordinate, index: coordinate, pressed: tuple[bool, bool, bool] | list[bool, bool, bool]):
+        self.__pos = pos
+        self.__index = index
+        self.__pressed = pressed
+
+    def get_index(self):
+        return Vector2Int(self.__index)
+
+    def get_pos(self):
+        return Vector2Int(self.__pos)
+
+    def get_left_click(self):
+        return self.__pressed[0]
+
+    def get_middle_click(self):
+        return self.__pressed[1]
+
+    def get_right_click(self):
+        return self.__pressed[2]
+
+    def get_pressed(self):
+        return self.__pressed
+
+
 # "move"
 # "take"
 # "setup"
@@ -119,7 +252,6 @@ class AttributeDict(dict):
 # "on_event"
 
 class IndexedEvent:
-
     key: str
     function: Callable
 
@@ -210,7 +342,7 @@ class GeneratedPiece:
             config = AttributeDict(config)
 
         keys = list(config.keys())
-        #print(piece_id)
+        # print(piece_id)
         GeneratedPiece.__piece_ids.append(piece_id)
         self.piece_id = piece_id
         self.keys = keys
@@ -266,7 +398,8 @@ class GeneratedPiece:
     def generate_piece(self, colour: str = "null", pos: coordinate = Vector2(), board: Any = None):
 
         display = self.display
-        piece = Piece(self.blank, self.events, self.moves, self.takes, display, self.name, self.piece_id, Vector2(pos), colour, board)
+        piece = Piece(self.blank, self.events, self.moves, self.takes, display, self.name, self.piece_id, Vector2(pos),
+                      colour, board)
 
         return piece
 
@@ -280,6 +413,84 @@ class GeneratedPiece:
 
 
 class Piece:
+    """
+    *"Active" Piece class*
+
+    (Saying active here is just a fancy way to say it's a piece that has been generated and can do things)
+
+    the Piece class is the basis for all pieces other than blank pieces
+    it manages the events ran for the piece, generates moves
+
+    ------
+
+    Pieces are generated from a *GeneratedPiece* class, which is a scafold for a piece, it contains the event keys, the asset keys, and the raw moves for a piece
+
+    **Functions**
+
+    move(pos: coordinate) -> None
+    ---
+    Moves the piece to *pos*
+
+    get_moves() -> SharedList[TileMoveEvent]
+    ---
+    Gets the pieces moves (generated from events)
+
+    Note: a shared list functions exactly like a normal python list,
+    although it has 1 slight change, it won't affect interacting with it
+
+    get_moves() -> SharedList[TileTakeEvent]
+    ---
+    Gets the pieces takes (generated from events)
+
+    Note: from looking at the code, they actually return a RawTileEvent (base for TileTakeEvent and TileMoveEvent),
+    Eventually I might fix it so it returns the take / move specific ones, but :P there must be a reason
+
+    ------
+
+    **Variables**
+
+    pos (Vector2)
+    ---
+    The pieces position
+
+    piece_id (str)
+    ---
+    The pieces piece id (the id used in the board config setup)
+
+    name (str)
+    ---
+    The pieces name (defined in config)
+
+    display (it's either a image or a string, or something, can't be bothered figureing it out)
+    ---
+    The display (text or a image) (it's ALSO defined in config)
+
+    events (PieceEvents)
+    ---
+    The events of the piece (ALSO defined in config)
+
+    moves (moves_format)
+    ---
+    This is just the base of the moves, this is what is the simplistic move defined in config is used for
+
+    takes (takes_format)
+    ---
+    Same as moves, but for takes
+
+    move_count (int)
+    ---
+    The amount of moves this piece has made
+
+    data (dict)
+    ---
+    Basically an attribute for adding "tags",
+    and in a way so that you can check the tags it has and their values
+
+    colour (str)
+    ---
+    is it black? or is it white? or is it, who knows!
+
+    """
 
     pos: Vector2
     piece_id: str
@@ -296,7 +507,11 @@ class Piece:
 
     colour: str
 
-    def __init__(self, blank: bool = False, events: Optional[PieceEvents] = None, moves: Optional[moves_format] = None, takes: Optional[takes_format] = None, display: Optional[dict[str, dict[str, Surface | str] | str]] = None, name: Optional[str] = None, piece_id: Optional[str] = None, pos: Optional[coordinate | None] = Vector2(), colour: Optional[str] = None, board: Any = None):
+    def __init__(self, blank: bool = False, events: Optional[PieceEvents] = None, moves: Optional[moves_format] = None,
+                 takes: Optional[takes_format] = None,
+                 display: Optional[dict[str, dict[str, Surface | str] | str]] = None, name: Optional[str] = None,
+                 piece_id: Optional[str] = None, pos: Optional[coordinate | None] = Vector2(),
+                 colour: Optional[str] = None, board: Any = None):
         self.blank = blank
 
         self.events = events
@@ -321,35 +536,63 @@ class Piece:
         self.__board.move(self.pos, pos)
 
     def get_moves(self):
+        moves = []
         for move in self.moves:
             count = 0
             out = True
             pre_pos = copy(self.pos)
-            parent = None
+            moves_ = SharedList()
             while count < 64 and out:
                 count += 1
-                print("parent", parent)
-                event_data = RawTileEvent(self, self.__board, move, self.pos, pre_pos + Vector3(move).xy, pre_pos, count, parent)
-                print("event_data.parent", event_data.parent)
-                print("event_data", event_data)
+                pos = pre_pos + Vector3(move).xy
+                if not (0 <= int(pos.x) < 8) or not (0 <= int(pos.y) < 8):
+                    break
+                event_data = RawTileEvent(self, self.__board, move, self.pos, pos, pre_pos, count, moves_)
                 for event in self.events.tile_move:
-                    #print(event_data)
                     out = event(event_data)
                     pre_pos = event_data.pos
-                    parent = event_data
                     if not out:
                         break
-                print("event_data", event_data)
-                print("Next")
+            moves.append(list(moves_))
+        event_data = MoveEvent(self, self.__board, self.pos, moves, self.moves)
+        for event in self.events.move:
+            event(event_data)
+        return event_data.moves
 
+    def get_takes(self):
+        takes = []
+        for take in self.takes:
+            count = 0
+            out = True
+            pre_pos = copy(self.pos)
+            takes_ = SharedList()
+            while count < 64 and out:
+                count += 1
+                pos = pre_pos + Vector3(take).xy
+                if not (0 <= int(pos.x) < 8) or not (0 <= int(pos.y) < 8):
+                    break
+                event_data = RawTileEvent(self, self.__board, take, self.pos, pos, pre_pos, count, takes_)
+                for event in self.events.tile_take:
+                    out = event(event_data)
+                    pre_pos = event_data.pos
+                    if not out:
+                        break
 
-            print(list(event_data))
-            return list(event_data)
+            takes.append(list(takes_))
+        event_data = TakeEvent(self, self.__board, self.pos, takes, self.takes)
+        for event in self.events.take:
+            event(event_data)
+        return event_data.takes
 
 
 # Board Class, this is the basis of the game, containing the pieces
 # and helper functions used to move pieces around
 class Board:
+    """
+    Board Class
+
+    This class is used for most things, it contains the board
+    """
 
     __board: list[list[Piece]] = []
     for x in range(8):
@@ -358,10 +601,12 @@ class Board:
     __assets: dict = None
     __events: dict = None
 
+    __mouse: Mouse
+
     # Converts the config board into actual pieces, which have been generated as "GeneratedPiece"
     def gen_board(self):
         self.board_init: list[list[int]]
-        #print(range(len(self.board_init)))
+
         # Columns
         for y in range(len(self.board_init)):
             row = self.board_init[flip_y(y)]
@@ -401,11 +646,10 @@ class Board:
         """
         if y is None:
             x: coordinate
-            pos = flip_coordinate(Vector2(x))
+            pos = Vector2(x)
             return self.__board[int(pos.y)][int(pos.x)]
         else:
             return self.__board[y][x]
-
 
     def spawn_piece(self, piece: int | GeneratedPiece, x: int | coordinate, y: Optional[int] = None):
 
@@ -431,7 +675,7 @@ class Board:
 
         piece = generated_piece.generate_piece(colour, (x, y), self)
 
-        print(piece.piece_id)
+        # print(piece.piece_id)
 
         self.__board[flip_y(y)][x] = piece
 
@@ -475,8 +719,15 @@ class Board:
         return copy(Board.__assets)
 
     def __str__(self):
-        #print(" a ".join(str(len(self.__board[x])) for x in range(len(self.__board))))
-        return "[ " + " ],\n[ ".join(", ".join(r.piece_id for r in self.__board[i]) for i in range(len(self.__board))) + " ]"
+        # print(" a ".join(str(len(self.__board[x])) for x in range(len(self.__board))))
+        return "[ " + " ],\n[ ".join(
+            ", ".join(r.piece_id for r in self.__board[i]) for i in range(len(self.__board))) + " ]"
+
+    def attach_mouse(self, mouse):
+        self.__mouse = mouse
+
+    def get_mouse(self):
+        return self.__mouse
 
 
 # ------- EVENTS -------
@@ -511,6 +762,7 @@ class Event:
     def get_piece(self):
         return self.piece
 
+
 class RawTileEvent(Event):
     """
     """
@@ -520,10 +772,9 @@ class RawTileEvent(Event):
     pos: coordinate
     pre: coordinate
     count: int
-    child: Any | None
-    parent: Any | None
+    moves: SharedList
 
-    func: Callable = lambda *x : ...
+    func: Callable = lambda *x: ...
 
     __length: int = 0
     board: Board
@@ -536,7 +787,7 @@ class RawTileEvent(Event):
                  pos: coordinate,
                  pre: coordinate,
                  count: int,
-                 parent=None,
+                 moves: SharedList
                  ):
         self.piece = piece
         self.raw_data = raw_data
@@ -545,13 +796,11 @@ class RawTileEvent(Event):
         self.pos = pos
         self.board = board
         self.count = count
-        self.parent = parent
-        self.child = None
+        self.moves = moves
         self.__canceled = False
         self.type = self.__class__
-        if not parent is None:
-            parent.child = self
-            self.__length = parent.__length + 1
+
+        self.moves.append(self)
 
     def __len__(self):
         """
@@ -560,24 +809,13 @@ class RawTileEvent(Event):
         return self.__length
 
     def __repr__(self):
-        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_data:{self.raw_data}, start:{self.start}, pre:{self.pre}, pos:{self.pos}, count:{self.count}, parent:{True if self.parent else False}, child:{True if self.child else False}' + "}"
+        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_data:{self.raw_data}, start:{self.start}, pre:{self.pre}, pos:{self.pos}, count:{self.count}' + "}"
 
-    def get_child(self):
-        if self.child:
-            return self.child
-        else:
-            return None
-
-    def get_parent(self):
-        if self.parent:
-            return self.parent
-        else:
-            return None
+    def __str__(self):
+        return "{" + f'type:"{self.type}", piece:{self.piece}, raw_data:{self.raw_data}, start:{self.start}, pre:{self.pre}, pos:{self.pos}, count:{self.count}, moves:{self.moves}' + "}"
 
     def __iter__(self):
-        if self.child:
-            return iter([self, *list(self.parent)])
-        return iter([self])
+        return self.moves
 
     def attach_function(self, func: Callable):
         self.func = func
@@ -589,6 +827,16 @@ class RawTileEvent(Event):
     def is_canceled(self):
         return self.__canceled
 
+    def get_next(self):
+        if len(self.moves) >= self.count + 1:
+            return None
+        return self.moves[self.count + 1]
+
+    def get_previous(self):
+        if self.count - 1 > 0:
+            return self.moves[self.count - 1]
+        return None
+
 
 class TileTakeEvent(RawTileEvent):
     ...
@@ -598,6 +846,8 @@ class TileMoveEvent(RawTileEvent):
     ...
 
 
+# I have no clue what this is for
+# (THIS IS WHY YOU COMMENT YOUR CODE!!!!)
 class MoveData(Event):
     pos: Vector2
     piece: Piece
@@ -619,15 +869,15 @@ class MoveData(Event):
         return self
 
 
-
 class MoveEvent(Event):
     piece: Piece
     moves: list[list[TileMoveEvent]]
     raw_moves: list[list[int, int, int]]
 
-    def __init__(self, piece, moves, raw_moves):
+    def __init__(self, piece: Piece, board: Board, pos, moves, raw_moves):
         self.piece = piece
         self.moves = moves
+        self.pos = pos
         self.raw_moves = raw_moves
 
 
@@ -636,7 +886,32 @@ class TakeEvent(Event):
     moves: list[list[TileTakeEvent]]
     raw_takes: list[list[int, int, int]]
 
-    def __init__(self, piece, moves, raw_takes):
+    def __init__(self, piece: Piece, board: Board, pos: coordinate, takes, raw_takes):
         self.piece = piece
-        self.moves = moves
+        self.takes = takes
+        self.takes: list
+        self.takes.insert(0, [])
+        self.pos: Sequence[int] = pos
         self.raw_takes = raw_takes
+
+    def add_take(self, pos: coordinate, function: Optional[callable] | str = None):
+        raw: list[int] = [pos[0] - self.pos[0], pos[1] - self.pos[1], 1]
+        raw: list[int, int, int]
+        event = RawTileEvent(
+            piece=self.piece,
+            board=self.get_board(),
+            raw_data=raw,
+            start=self.pos,
+            pos=pos,
+            pre=self.pos,
+            count=0,
+            moves=SharedList(),
+        )
+
+        if function:
+            if type(function) is str:
+                function = IndexedEvent(function)
+            event.attach_function(function)
+
+        self.takes[0].append(event)
+        return event

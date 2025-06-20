@@ -3,6 +3,7 @@ from typing import Optional
 from classes import MoveEvent, TakeEvent, TileTakeEvent, TileMoveEvent, RawTileEvent
 from pygame import Vector2, Vector3
 
+
 def default_tile_blocked(event: RawTileEvent):
     piece = event.get_board().get_piece_at(event.pos)
     if piece.piece_id != "0":
@@ -24,6 +25,7 @@ def default_tile_move(event: TileMoveEvent):
     else:
         return True
 
+
 def default_tile_take(event: TileTakeEvent):
     """
     This is the default function for TileTakeEvent
@@ -31,6 +33,8 @@ def default_tile_take(event: TileTakeEvent):
     returning False ends the iteration on this path of events
     """
     if not default_tile_blocked(event):
+        if event.get_board().get_piece_at(event.pos).colour == event.get_piece().colour:
+            event.cancel()
         return False
 
     event.cancel()
@@ -38,7 +42,9 @@ def default_tile_take(event: TileTakeEvent):
     if event.count > event.raw_data[2]:
         return False
     else:
-        return True
+        piece = event.get_piece()
+        return piece.colour == event.get_board().get_piece_at(event.pos).colour
+
 
 def default_directional_tile_move(event: TileMoveEvent):
     """
@@ -50,6 +56,7 @@ def default_directional_tile_move(event: TileMoveEvent):
         event.pos = event.pre - Vector3(event.raw_data).xy
         print(event.pos, event.pre)
     return True
+
 
 def default_directional_tile_take(event: TileTakeEvent):
     """
@@ -67,6 +74,7 @@ def default_move(event: MoveEvent):
     Placeholder function that has no effect
     """
     return event
+
 
 def default_take(event: TakeEvent):
     """
