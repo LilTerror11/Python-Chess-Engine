@@ -4,9 +4,9 @@ import pygame
 import json
 
 from pygame import Vector2, Vector3, Surface
-from pygame.transform import scale, scale_by
+from pygame.transform import scale_by
 
-from classes import AttributeDict, Board, GeneratedPiece, GLOBAL, Event, flip_coordinate, TileMoveEvent, flip_y, Mouse, \
+from classes import AttributeDict, Board, GeneratedPiece, GLOBAL, Event, flip_coordinate, flip_y, Mouse, \
     Vector2Int, SharedList
 from functions import events
 
@@ -19,7 +19,7 @@ def load_json(file_path) -> dict:
 
 def save_data(file_path, data: dict):
     with open(file_path, "w") as file:
-        json.dump(data, file, indent=2)
+        json.dump(data, file, indent=2) # noqa
 
 
 GLOBAL.set_events(events)

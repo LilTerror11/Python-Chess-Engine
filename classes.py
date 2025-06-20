@@ -3,21 +3,20 @@ from collections.abc import Sequence, Callable
 from typing import Iterable, Any, Protocol, runtime_checkable, Optional
 from warnings import warn
 
-import pygame.mouse
 from pygame import Vector2, Surface, Vector3
-from builtins import print as log
+# from builtins import print as log
 
 
 # ------- HEHE --------
 
-def print(*values, sep=" ", end="\n"):
-    log("Classes: " + sep.join(str(v) for v in values), end=end)
+# def print(*values, sep=" ", end="\n"):
+#     log("Classes: " + sep.join(str(v) for v in values), end=end)
 
 
 # ------- ERRORS -------
 
 
-# This means that there is no board asigned yet
+# This means that there is no board assigned yet
 class NoBoardException(Exception):
     ...
 

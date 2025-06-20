@@ -1,7 +1,7 @@
-from typing import Optional
+from typing import Optional # noqa
 
 from classes import MoveEvent, TakeEvent, TileTakeEvent, TileMoveEvent, RawTileEvent
-from pygame import Vector2, Vector3
+from pygame import Vector2, Vector3 # noqa
 
 
 def default_tile_blocked(event: RawTileEvent):
