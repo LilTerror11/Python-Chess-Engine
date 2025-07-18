@@ -38,6 +38,10 @@ class ConfigLoggingWarning(UserWarning):
     ...
 
 
+class InvalidMoveWarning(UserWarning):
+    ...
+
+
 # ------------ TYPES / CLASSES / FUNCTIONS ------------
 
 coordinate = Vector2 | Sequence[int]
@@ -69,6 +73,7 @@ class GLOBAL:
     __events: dict
     __assets: dict
     __config_raw: dict
+    __overrides: dict
 
     @staticmethod
     def set_events(val):
@@ -81,6 +86,20 @@ class GLOBAL:
     @staticmethod
     def set_raw_config(val):
         GLOBAL.__config_raw = copy(val)
+        GLOBAL.__overrides = {
+            "InvalidMoveOverride": False,
+            "InvalidTakeOverride": False
+        }
+        if GLOBAL.__config_raw.keys().__contains__("OVERRIDE"):
+            overrides: dict = GLOBAL.__config_raw["OVERRIDE"]
+            keys = overrides.keys()
+            if keys.__contains__("InvalidMoveOverride"):
+                if overrides["InvalidMoveOverride"]:
+                    GLOBAL.__overrides["InvalidMoveOverride"] = True
+            if keys.__contains__("InvalidTakeOverride"):
+                if overrides["InvalidTakeOverride"]:
+                    GLOBAL.__overrides["InvalidTakeOverride"] = True
+
 
     @staticmethod
     def get_events():
@@ -93,6 +112,10 @@ class GLOBAL:
     @staticmethod
     def get_raw_config():
         return GLOBAL.__config_raw
+
+    @staticmethod
+    def get_overrides():
+        return GLOBAL.__overrides
 
 
 class AttributeDict(dict):
@@ -213,6 +236,12 @@ class Vector2Int:
             self.__y = value
         else:
             raise IndexError(item)
+
+    def __len__(self):
+        return 2
+
+    def __copy__(self):
+        return Vector2Int(self.x, self.y)
 
 
 class Mouse:
@@ -355,6 +384,9 @@ class GeneratedPiece:
 
         if keys.__contains__("blank"):
             self.blank = config.blank
+            self.moves = []
+            self.takes = []
+            self.events = PieceEvents()
         if not self.blank:
             # print(piece_id)
             if keys.__contains__("name"):
@@ -528,9 +560,35 @@ class Piece:
 
         self.__board: Board = board
 
+        self.data = {}
+
     def move(self, pos: int | coordinate, y: Optional[int] = None):
         if isinstance(pos, int):
             pos = Vector2(pos, y)
+        if not self.__board.get_piece_at(pos).blank and not GLOBAL.get_overrides()["InvalidMoveOverride"]:
+            warn(f"Canceling moving piece into another piece", InvalidMoveWarning)
+            print("Disable this by enabling InvalidMoveOverride in config (in the OVERRIDE section)")
+            return
+        move_event = OnMoveEvent(self, self.__board, self.pos, pos)
+        for event in self.events.on_move:
+            event(move_event)
+        self.move_count += 1
+        self.__board.move(self.pos, pos)
+
+    def take(self, pos: int | coordinate, y: Optional[int] = None):
+        if isinstance(pos, int):
+            pos = Vector2(pos, y)
+        if self.__board.get_piece_at(pos).blank and not GLOBAL.get_overrides()["InvalidTakeOverride"]:
+            warn(f"Canceling taking a blank space", InvalidMoveWarning)
+            print("Disable this by enabling InvalidTakeOverride in config (in the OVERRIDE section)")
+            return
+        target = self.__board.get_piece_at(pos)
+        taken_event = OnTakenEvent(target, self.__board, target.pos, self, self.pos)
+        for event in target.events.on_taken:
+            event(taken_event)
+        take_event = OnAttackEvent(self, self.__board, self.pos, target, target.pos)
+        for event in self.events.on_attack:
+            event(take_event)
         self.move_count += 1
         self.__board.move(self.pos, pos)
 
@@ -564,13 +622,22 @@ class Piece:
             count = 0
             out = True
             pre_pos = copy(self.pos)
+            #print(pre_pos, self.pos)
             takes_ = SharedList()
             while count < 64 and out:
                 count += 1
                 pos = pre_pos + Vector3(take).xy
                 if not (0 <= int(pos.x) < 8) or not (0 <= int(pos.y) < 8):
                     break
-                event_data = RawTileEvent(self, self.__board, take, self.pos, pos, pre_pos, count, takes_)
+                event_data = RawTileEvent(self,         # piece
+                                          self.__board, # board
+                                          take,         # raw_data
+                                          self.pos,     # start
+                                          pos,          # pos
+                                          pre_pos,      # pre
+                                          count,        # count
+                                          takes_        # moves
+                                          )
                 for event in self.events.tile_take:
                     out = event(event_data)
                     pre_pos = event_data.pos
@@ -676,7 +743,7 @@ class Board:
 
         # print(piece.piece_id)
 
-        self.__board[flip_y(y)][x] = piece
+        self.__board[int(y)][int(x)] = piece
 
         return piece
 
@@ -689,10 +756,11 @@ class Board:
         :return: None
         """
 
-        pos1_ = flip_coordinate(pos1)
-        pos2_ = flip_coordinate(pos2)
+        pos1_ = copy(pos1)
+        pos2_ = copy(pos2)
 
-        self.__board[int(pos2_[1])][int(pos2_[0])] = copy(self.__board[int(pos1_[1])][int(pos1_[0])])
+        self.get_piece_at(pos1_).pos = Vector2(pos2_)
+        self.__board[int(pos2_[1])][int(pos2_[0])] = self.__board[int(pos1_[1])][int(pos1_[0])]
         self.spawn_piece(replace, pos1)
 
     def get_board(self):
@@ -879,6 +947,28 @@ class MoveEvent(Event):
         self.pos = pos
         self.raw_moves = raw_moves
 
+    def add_move(self, pos: coordinate, function: Optional[callable] | str = None):
+        raw: list[int] = [pos[0] - self.pos[0], pos[1] - self.pos[1], 1]
+        raw: list[int, int, int]
+        event = RawTileEvent(
+            piece=self.piece,
+            board=self.get_board(),
+            raw_data=raw,
+            start=self.pos,
+            pos=pos,
+            pre=self.pos,
+            count=0,
+            moves=SharedList(),
+        )
+
+        if function:
+            if type(function) is str:
+                function = IndexedEvent(function)
+            event.attach_function(function)
+
+        self.moves[0].append(event)
+        return event
+
 
 class TakeEvent(Event):
     piece: Piece
@@ -914,3 +1004,45 @@ class TakeEvent(Event):
 
         self.takes[0].append(event)
         return event
+
+class OnMoveEvent(Event):
+    def __init__(self, piece: Piece, board: Board, pos: coordinate, target_pos: coordinate):
+        self.piece = piece
+        self.pos = pos
+        self.target_pos = target_pos
+
+
+class OnAttackEvent(Event):
+    def __init__(self, piece: Piece, board: Board, pos: coordinate, target: Piece, target_pos: coordinate):
+        self.piece = piece
+        self.pos = pos
+        self.target = target
+        self.target_pos = target_pos
+
+    def get_target(self):
+        return self.target
+
+
+class OnTakenEvent(Event):
+    def __init__(self, piece: Piece, board: Board, pos: coordinate, attacker: Piece, attacker_pos: coordinate):
+        self.piece = piece
+        self.pos = pos
+        self.attacker = attacker
+        self.attacker_pos = attacker_pos
+
+    def get_attacker(self):
+        return self.attacker
+
+class RenderEvent(Event):
+    def __init__(self, piece: Piece, board: Board, pos: coordinate, tile_surf: Surface, tile_size: float | int, variables):
+        self.piece = piece
+        self.pos = pos
+        self.tile_surf = tile_surf
+        self.variables = variables
+        self.tile_size = tile_size
+
+    def get_surface(self):
+        return self.tile_surf
+
+    def get_variables(self):
+        return self.variables

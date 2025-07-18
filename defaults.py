@@ -1,7 +1,8 @@
 from typing import Optional # noqa
 
-from classes import MoveEvent, TakeEvent, TileTakeEvent, TileMoveEvent, RawTileEvent
-from pygame import Vector2, Vector3 # noqa
+from classes import MoveEvent, TakeEvent, TileTakeEvent, TileMoveEvent, RawTileEvent, RenderEvent
+from pygame import Vector2, Vector3, Surface # noqa
+from pygame.transform import scale_by
 
 
 def default_tile_blocked(event: RawTileEvent):
@@ -39,7 +40,7 @@ def default_tile_take(event: TileTakeEvent):
 
     event.cancel()
 
-    if event.count > event.raw_data[2]:
+    if event.count >= event.raw_data[2]:
         return False
     else:
         piece = event.get_piece()
@@ -53,8 +54,7 @@ def default_directional_tile_move(event: TileMoveEvent):
     """
     piece = event.get_piece()
     if piece.colour == "black":
-        event.pos = event.pre - Vector3(event.raw_data).xy
-        print(event.pos, event.pre)
+        event.pos = event.pre + Vector2(event.raw_data[0], -event.raw_data[1])
     return True
 
 
@@ -65,7 +65,7 @@ def default_directional_tile_take(event: TileTakeEvent):
     """
     piece = event.get_piece()
     if piece.colour == "black":
-        event.pos = event.pre - Vector3(event.raw_data).xy
+        event.pos = event.pre + Vector2(event.raw_data[0], -event.raw_data[1])
     return True
 
 
@@ -82,3 +82,36 @@ def default_take(event: TakeEvent):
     """
     return event
 
+def default_render(event: RenderEvent):
+
+    piece = event.get_piece()
+    tile_surf = event.get_surface()
+    x, y = event.pos
+    variables = event.get_variables()
+    piece_colour1 = variables["piece_colour1"]
+    piece_colour2 = variables["piece_colour2"]
+
+    board_colour = variables["board_colour"]
+
+    placeholder_font_bold = variables["placeholder_font_bold"]
+
+    tile_size_ = event.tile_size
+
+    if not piece.blank:
+        if piece.colour != "null":
+            display = piece.display[piece.colour]
+            piece_colour = piece_colour1, piece_colour2
+            if piece.colour == "black":
+                piece_colour = piece_colour2, piece_colour1
+            if isinstance(display, Surface):
+                ...
+            else:
+
+                text_surf1 = scale_by(placeholder_font_bold.render(str(display), False,
+                                                                   board_colour[1]), tile_size_ / 100)
+                tile_surf.blit(text_surf1, Vector2(tile_size_) / 2 - Vector2(text_surf1.get_size()) / 2)
+
+                tile_surf.fill(piece_colour[1],
+                                (Vector2(0, 0.76) * tile_size_, Vector2(tile_size_ * 0.24)))
+                tile_surf.fill(piece_colour[0],
+                                (Vector2(0.02, 0.78) * tile_size_, Vector2(tile_size_ * 0.2)))
