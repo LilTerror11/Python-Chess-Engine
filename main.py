@@ -1,16 +1,20 @@
+import os
+from typing import Optional
+
 import sys
-import time
 from copy import copy
 
 import pygame
 import json
 
 from pygame import Vector2, Vector3, Surface
-from pygame.transform import scale_by
 
 from classes import AttributeDict, Board, GeneratedPiece, GLOBAL, Event, flip_coordinate, flip_y, Mouse, \
     Vector2Int, SharedList, RenderEvent
-from functions import events
+from defaults import events
+# This is here, cause functions is used in NO other place, and needs to be ran
+# so that the code of the custom pieces is loaded
+import functions
 
 
 print("Python Chess!")
@@ -21,6 +25,7 @@ debugging = False
 for path in sys.path:
     if path.__contains__("\\python-ce\\helpers\\pydev"):
         print("Running in Intellij Debugger")
+        debugging = True
         break
 
 
@@ -33,7 +38,6 @@ def load_json(file_path) -> dict:
 def save_data(file_path, data: dict):
     with open(file_path, "w") as file:
         json.dump(data, file, indent=2) # noqa
-
 GLOBAL.set_events(events)
 
 config = AttributeDict(load_json("config.json"))
@@ -42,11 +46,20 @@ GLOBAL.set_raw_config(config)
 win = pygame.display.set_mode((600, 600), pygame.RESIZABLE)
 
 
-board_colour2 = Vector3(51, 29, 4)
-board_colour1 = Vector3(255) - board_colour2
+#board_colour2 = Vector3(51, 29, 4)
+board_colour2 = Vector3(118, 150, 86) * 0.9
+#board_colour1 = Vector3(255) - board_colour2
+board_colour1 = Vector3(238, 238, 210)
 
 piece_colour1 = Vector3(255)
 piece_colour2 = Vector3()
+
+GLOBAL.set_variables({
+    "board_colour2": board_colour2,
+    "board_colour1": board_colour1,
+    "piece_colour2": piece_colour2,
+    "piece_colour1": piece_colour1
+})
 
 mouse_tile = None
 
@@ -56,8 +69,28 @@ for piece_config_key in config.pieces:
     GeneratedPiece(piece_config, piece_config_key)
     # print(GeneratedPiece(piece_config, piece_config_key))
 
+
+def scan_dir(directory, assets_: Optional[dict] = None):
+    if assets_ is None:
+        assets_ = {}
+    paths = os.scandir(directory)
+    for path_ in paths:
+        if path_.is_file():
+            if path_.name.endswith(".png"):
+                assets_[path_.name] = pygame.image.load(path_.path)
+        elif path_.is_dir():
+            assets_[path_.name] = scan_dir(path_.path)
+
+    return assets_
+
+
+assets = scan_dir("Assets")
+GLOBAL.set_assets(assets)
+
+
 board = Board(config.board)
 Event.set_board(board)
+
 
 
 # board.spawn_piece(3, 4, 4)
@@ -123,7 +156,8 @@ def render():
         n: SharedList
         for m in n:
             if not m.is_canceled():
-                board_surf.fill((255, 0, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20)))
+                #print(tile_size_)
+                board_surf.fill((255, 0, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20 * tile_size_ / 75)))
             #else:
             #    board_surf.fill((255, 127, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20)))
 
@@ -131,7 +165,7 @@ def render():
         n: SharedList
         for m in n:
             if not m.is_canceled():
-                board_surf.fill((0, 255, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20)))
+                board_surf.fill((0, 255, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20 * tile_size_ / 75)))
             #else:
             #    board_surf.fill((255, 255, 0), (Vector2(m.pos[0], flip_y(m.pos[1]))*tile_size_, Vector2(20)))
 

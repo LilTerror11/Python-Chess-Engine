@@ -61,8 +61,11 @@
       ],
       "icon": {
         "display": {
-          "type": "text",
-          "value": "P"
+          "type": "image",
+          "value": {
+            "black": "Pieces/Black/pawn black.png",
+            "white": "Pieces/White/pawn white.png"
+          }
         }
       },
       "events": {
@@ -100,8 +103,11 @@
       ],
       "icon": {
         "display": {
-          "type": "text",
-          "value": "N"
+          "type": "image",
+          "value": {
+            "black": "Pieces/Black/knight black.png",
+            "white": "Pieces/White/knight white.png"
+          }
         }
       }
     },
@@ -192,7 +198,7 @@
     [ -1, -1, -1, -1, -1, -1, -1, -1 ],
     [  0,  1,  1,  1,  0,  0,  0,  0 ],
     [  0,  0,  0,  0,  0,  0,  0,  0 ],
-    [  0,  0,  0,  7,  0,  0,  0,  0 ],
+    [  0,  0,  0,  9,  0,  0,  0,  0 ],
     [  0,  0,  0,  0,  0,  0,  0,  0 ],
     [  1,  1,  1,  1,  1,  1,  1,  1 ],
     [  4,  2,  3,  6,  5,  3,  2,  4 ]

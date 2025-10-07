@@ -66,6 +66,30 @@ def flip_y(y: int):
     return 7 - y
 
 
+# Unused
+def parse_path(dict_path: str):
+    current = ""
+    string = False
+    escape = False
+    for char in dict_path:
+        if char == '"':
+            if escape:
+                escape = False
+                current += '"'
+
+
+def get_asset(dict_path: str | list):
+    if isinstance(dict_path, str):
+        dict_path = dict_path.split("/")
+
+    current = GLOBAL.get_assets()
+
+    for x in dict_path:
+        current = current[x]
+    return current
+    
+
+
 class GLOBAL:
     """
 
@@ -74,14 +98,19 @@ class GLOBAL:
     __assets: dict
     __config_raw: dict
     __overrides: dict
+    __variables = {}
 
     @staticmethod
     def set_events(val):
-        GLOBAL.__events = copy(val)
+        GLOBAL.__events = val
 
     @staticmethod
     def set_assets(val):
         GLOBAL.__assets = copy(val)
+
+    @staticmethod
+    def set_variables(val):
+        GLOBAL.__variables = val
 
     @staticmethod
     def set_raw_config(val):
@@ -116,6 +145,11 @@ class GLOBAL:
     @staticmethod
     def get_overrides():
         return GLOBAL.__overrides
+
+    @staticmethod
+    def get_variables():
+        return GLOBAL.__variables
+
 
 
 class AttributeDict(dict):
@@ -359,6 +393,7 @@ class GeneratedPiece:
     events: Optional[PieceEvents] = None
 
     display: Optional[AttributeDict[str, str | Surface]] = None
+    icon: None | dict
 
     piece_id: str
 
@@ -368,6 +403,7 @@ class GeneratedPiece:
     def __init__(self, config: AttributeDict | dict, piece_id: str):
         if isinstance(config, dict):
             config = AttributeDict(config)
+        self.config = config
 
         keys = list(config.keys())
         # print(piece_id)
@@ -376,6 +412,8 @@ class GeneratedPiece:
         self.keys = keys
 
         self.blank = False
+
+        self.icon = None
 
         if len(keys) == 0:
             warn(f"Piece \"id{piece_id}\" has no Config", ConfigWarning, stacklevel=3)
@@ -414,6 +452,7 @@ class GeneratedPiece:
                         self.display = AttributeDict({"black": icon_config.value, "white": icon_config.value})
                 elif icon_config.type == "image":
                     self.display = AttributeDict(icon_config.value)
+                    self.icon = {}
             else:
                 warn(f"Piece \"{self.name}\" is missing the \"icon\" tag", ConfigWarning, stacklevel=3)
                 warn(f"Piece \"{self.name}\" has had its display be generated ({self.name[0].upper()})",
@@ -426,9 +465,21 @@ class GeneratedPiece:
                 self.events = PieceEvents()
         GeneratedPiece.__pieces[piece_id] = self
 
+    def generate_icon(self):
+        if self.icon == {}:
+            assets = GLOBAL.get_assets()
+            self.icon = {
+                "white": get_asset(self.display["white"]),
+                "black": get_asset(self.display["black"])
+            }
     def generate_piece(self, colour: str = "null", pos: coordinate = Vector2(), board: Any = None):
 
-        display = self.display
+        if isinstance(self.icon, dict):
+            if self.icon == {}:
+                self.generate_icon()
+            display = self.icon
+        else:
+            display = self.display
         piece = Piece(self.blank, self.events, self.moves, self.takes, display, self.name, self.piece_id, Vector2(pos),
                       colour, board)
 
